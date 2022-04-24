@@ -204,3 +204,48 @@ def spectrum(pars,startab):
      
     return im
  
+
+def example():
+    """ Run example of synth code."""
+
+
+    pars = {}
+    pars['fwhm'] = 2.5 
+    pars['dispersion'] = 1.0  # A per pixel 
+    pars['angle'] = 0
+    pars['wr'] = [10000,11000] 
+    pars['w0'] = np.mean(pars['wr'])
+    pars['nx'] = 2048 
+    pars['ny'] = 2048 
+     
+    # Transmission/throughput curve
+    trans = np.zeros(pars['wr'][1]-pars['wr'][0]+2,dtype=np.dtype([('wave',float),('flux',float)]))
+    trans['wave'] = np.arange(pars['wr'][1]-pars['wr'][0]+2)+pars['wr'][0] 
+    # -97.389234    0.0056913391   1.5786481e-06  -1.1699067e-10 
+    tcoef = [-97.389234,    0.0056913391,   1.5786481e-06,  -1.1699067e-10] 
+    trans['flux'] = np.polyval(np.flip(tcoef),trans['wave'])
+    pars['trans'] = trans
+    
+    # Star catalog
+    dt = [('id',int),('x',float),('y',float),('flux',float),('teff',float),('logg',float),('feh',float)]
+    nstars = 500
+    tab = np.zeros(nstars,dtype=np.dtype(dt))
+    tab['x'] = np.random.rand(nstars)*(pars['nx']-200)+100 
+    tab['x'] = np.round(tab['x']).astype(int)
+    tab['y'] = np.random.rand(nstars)*(pars['ny']-200)+100 
+    tab['y'] = np.round(tab['y']).astype(int)
+    tab['flux'] = np.random.rand(nstars)*1e4+200 
+    teff = np.array([3500,3750,4000,4500]) 
+    logg = np.array([2.5,3.0,2.5,3.0])
+    feh = np.array([-1.0,-0.5,-0.5,0.0])
+    tab['teff'] = teff[np.round(np.random.rand(nstars)*3).astype(int)]
+    tab['logg'] = logg[np.round(np.random.rand(nstars)*3).astype(int)]
+    tab['feh'] = feh[np.round(np.random.rand(nstars)*3).astype(int)]
+
+    im = image(pars,tab)
+    pars['angle'] = 0    
+    specim0 = spectrum(pars,tab)
+    pars['angle'] = 90
+    specim90 = spectrum(pars,tab)
+
+    return im,specim0,specim90
