@@ -26,14 +26,15 @@ def slitless():
     # make two slitless spectra images at two different angles 
     # and one direct imaging image 
      
-    # Parameters 
-    fwhm = 2.5 
-    dispersion = 1.0  # A per pixel 
-    angle = 90.0  # 0.0 
-    wr = [10000,11000] 
-    w0 = np.mean(wr) 
-    nx = 2048 
-    ny = 2048 
+    # Parameters
+    pars = {}
+    pars['fwhm'] = 2.5 
+    pars['dispersion'] = 1.0  # A per pixel 
+    pars['angle'] = 90.0  # 0.0 
+    pars['wr'] = [10000,11000] 
+    pars['w0'] = np.mean(wr) 
+    pars['nx'] = 2048 
+    pars['ny'] = 2048 
      
     # Transmission/throughput curve
     trans = np.zeros(wr[1]-wr[0]+1,dtype=np.dtype([('wave',float),('flux',float)]))
@@ -41,7 +42,8 @@ def slitless():
     # -97.389234    0.0056913391   1.5786481e-06  -1.1699067e-10 
     tcoef = [-97.389234,    0.0056913391,   1.5786481e-06,  -1.1699067e-10] 
     trans['flux'] = np.polyval(np.flip(tcoef)trans['wave'])
-     
+    pars['trans'] = trans
+    
     # Star catalog
     dt = [('id',int),('x',float),('y',float),('flux',float),('teff',float),('logg',float),('feh',float)]
     nstars = 500
@@ -74,17 +76,17 @@ def slitless():
          
         # NO dispersion 
         #-------------- 
-        If dispersion == 0.0: 
+        if dispersion == 0.0: 
              
             # Generate the spatial Gaussian (FWHM) kernel 
-            xr = [ np.maximum(np.floor(tab1['x']-5*fwhm),0), np.minimum(np.ceil(tab1['x']+5*fwhm),(nx-1)) ] 
-            yr = [ np.maximum(np.floor(tab1['y']-5*fwhm),0), np.minimum(np.ceil(tab1['y']+5*fwhm),(ny-1)) ] 
+            xr = [ np.maximum(np.floor(tab1['x']-5*pars['fwhm']),0), np.minimum(np.ceil(tab1['x']+5*pars['fwhm']),(nx-1)) ] 
+            yr = [ np.maximum(np.floor(tab1['y']-5*pars['fwhm']),0), np.minimum(np.ceil(tab1['y']+5*pars['fwhm']),(ny-1)) ] 
             xx = (np.arange(xr[1]-xr[0]+1).astype(float)+xr[0]).reshape(-1,1) + np.zeros(yr[1]-yr[0]+1).reshape(-1,1)
             yy = np.zeros(xr[1]-xr[0]+1).reshape(-1,1) + (np.arange(yr[1]-yr[0]+1).astype(float)+yr[0]).reshape(-1,1)
-            subim = exp(-0.5*((xx-tab1['x'])**2+(yy-tab1['y'])**2)/(fwhm/2.35)**2) 
+            subim = exp(-0.5*((xx-tab1['x'])**2+(yy-tab1['y'])**2)/(pars['fwhm']/2.35)**2) 
             # Scale by flux 
             subim /= np.sum(subim) 
-            subim *= tab1.flux 
+            subim *= tab1['flux'] 
             # Add to image 
             im[xr[0]:xr[1],yr[0]:yr[1]] += subim 
              
@@ -106,31 +108,31 @@ def slitless():
             print(i+1,' ',synfile)
              
             # Scale the spectrum by the magnitude/flux 
-            dum = dln.closest(w0,synstr.wave,ind=wind) 
+            dum = dln.closest(w0,synstr['wave'],ind=wind) 
             synstr['flux'] *= tab1['flux']/synstr['flux'][wind]
              
             # Generate the spatial Gaussian (FWHM) kernel 
-            nkernel = np.ceil(fwhm*2.5) 
+            nkernel = np.ceil(pars['fwhm']*2.5) 
             if nkernel % 2 == 0 : 
                 nkernel += 1 
             xkernel = np.arange(nkernel)-nkernel/2 
-            kernel = np.exp(-0.5*xkernel**2/(fwhm/2.35)**2) 
+            kernel = np.exp(-0.5*xkernel**2/(pars['fwhm']/2.35)**2) 
             kernel /= np.sum(kernel)  # normalize 
              
             if angle == 0.0: 
                 # Figure out the X/Y center and how far the spectrum stretches 
                 # Traces are STRAIGHT (for now) 
-                xr = (wr-w0)/dispersion + tab1['x'] 
+                xr = (pars['wr']-pars['w0'])/pars['dispersion'] + tab1['x'] 
                 nxspec = xr[1]-xr[0]+1 
-                wave = np.arange(nxspec)*dispersion+wr[0] 
+                wave = np.arange(nxspec)*pars['dispersion']+pars['wr'][0] 
                  
                 # Bin the spectrum for the pixels 
                 osamp = 4 
                 xx = np.arange(nxspec*osamp).astype(float)/osamp+xr[0] 
-                wavefine = np.arange(nxspec*osamp).astype(float)/osamp*dispersion+wr[0] 
-                fluxfine = interp1d(wavefine,synstr['wave'],synstr.['flux']) 
+                wavefine = np.arange(nxspec*osamp).astype(float)/osamp*pars['dispersion']+pars['wr'][0] 
+                fluxfine = interp1d(wavefine,synstr['wave'],synstr['flux']) 
                 # multiply times the transmission 
-                transfine = interp(wavefine,trans['wave'],trans['flux']) 
+                transfine = interp(wavefine,pars['trans']['wave'],pars['trans']['flux']) 
                 binflux = dln.rebin(fluxfine*transfine,nxspec) 
                 binxx = dln.rebin(xx,nxspec) 
                  
@@ -154,17 +156,17 @@ def slitless():
             elif angle == 90.0: 
                 # Figure out the X/Y center and how far the spectrum stretches 
                 # Traces are STRAIGHT (for now) 
-                yr = (wr-w0)/dispersion + tab1['y'] 
+                yr = (pars['wr']-pars['w0'])/pars['dispersion'] + tab1['y'] 
                 nyspec = yr[1]-yr[0]+1 
-                wave = np.arange(nyspec)*dispersion+wr[0] 
+                wave = np.arange(nyspec)*pars['dispersion']+pars['wr'][0] 
                  
                 # Bin the spectrum for the pixels 
                 osamp = 4 
                 yy = np.arange(nyspec*osamp).astype(float)/osamp+yr[0] 
-                wavefine = np.arange(nyspec*osamp).astype(float)/osamp*dispersion+wr[0] 
+                wavefine = np.arange(nyspec*osamp).astype(float)/osamp*pars['dispersion']+pars['wr'][0] 
                 fluxfine = interp(wavefine,synstr['wave'],synstr['flux']) 
                 # multiply times the transmission 
-                transfine = interp(wavefine,trans['wave'],trans['flux']) 
+                transfine = interp(wavefine,pars['trans']['wave'],pars['trans']['flux']) 
                 binflux = dln.rebin(fluxfine*transfine,nyspec) 
                 binyy = dln.rebin(yy,nyspec) 
                  
